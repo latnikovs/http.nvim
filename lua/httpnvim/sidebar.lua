@@ -590,6 +590,7 @@ function M.open(proj)
   end
   state.project = proj
   local win = M.win()
+  local opened = not win
   if not win then
     win = vim.api.nvim_open_win(make_buf(), true, { split = "left", win = -1, width = config.options.sidebar.width })
     for option, value in pairs({
@@ -608,6 +609,18 @@ function M.open(proj)
   end
   vim.api.nvim_set_current_win(win)
   M.render()
+  if opened and config.options.sidebar.unlock and not secrets.is_loaded(proj) then
+    -- Like dadbod-ui with its connections: unlock right away, then pick the
+    -- environment, so the first send needs no more questions
+    vim.schedule(function()
+      vim.cmd.redraw()
+      secrets.load(proj, function(loaded)
+        if loaded and M.win() and state.project.root == proj.root then
+          require("httpnvim").select_env(nil, proj)
+        end
+      end)
+    end)
+  end
 end
 
 function M.close()

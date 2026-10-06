@@ -189,8 +189,11 @@ that service's own secrets: `integration/stag/client-a` applies to requests
 in `integration/` only, over the project-wide `stag/client-a`. Environments
 are listed without the service.
 
-The hook runs once per project and session, on the first send that needs a
-variable the env files don't have (or from the sidebar's "unlock secrets").
+The hook runs once per project and session: when the sidebar opens, which
+then asks for the environment right away (as dadbod-ui does with its
+connections; `sidebar = { unlock = false }` turns it off), else on the first
+send that needs a variable the env files don't have, or from the sidebar's
+"unlock secrets".
 Secrets go over env files, environments that exist only there are listed
 too, and a missing secret is an error instead of a prompt.
 `:HttpSecretsReset` forgets them.

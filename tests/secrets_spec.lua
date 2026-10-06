@@ -68,4 +68,34 @@ describe("secrets", function()
     eq(nil, secrets.get(proj))
     httpnvim.view("body")
   end)
+
+  it("unlocks them when the sidebar opens, then asks for the environment", function()
+    local sidebar = require("httpnvim.sidebar")
+    local cwd = vim.fn.getcwd()
+    vim.cmd.cd(vim.fs.dirname(root))
+    local items
+    local orig = vim.ui.select
+    vim.ui.select = function(choices, _, on_choice)
+      items = choices
+      on_choice("stag/c")
+    end
+    local before = calls
+    sidebar.open()
+    vim.wait(1000, function()
+      return items ~= nil
+    end)
+    vim.ui.select = orig
+    eq(before + 1, calls)
+    eq({ "stag", "stag/a", "stag/c" }, items)
+    eq("stag/c", env.selected(proj))
+    -- Already unlocked: reopening asks nothing
+    sidebar.close()
+    items = nil
+    sidebar.open()
+    vim.wait(50)
+    eq(nil, items)
+    eq(before + 1, calls)
+    sidebar.close()
+    vim.cmd.cd(cwd)
+  end)
 end)
