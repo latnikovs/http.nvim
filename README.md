@@ -184,6 +184,11 @@ opts = {
 }
 ```
 
+A path that starts with a service (a top-level folder of the project) holds
+that service's own secrets: `integration/stag/client-a` applies to requests
+in `integration/` only, over the project-wide `stag/client-a`. Environments
+are listed without the service.
+
 The hook runs once per project and session, on the first send that needs a
 variable the env files don't have (or from the sidebar's "unlock secrets").
 Secrets go over env files, environments that exist only there are listed

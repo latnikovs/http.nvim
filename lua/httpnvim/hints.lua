@@ -24,7 +24,7 @@ function M.describe(ctx, source)
   if source.kind == "line" then
     return "@line " .. (source.lnum or "?")
   elseif source.kind == "secret" then
-    return "secrets · " .. source.env
+    return "secrets · " .. (source.service and (source.service .. " · ") or "") .. source.env
   end
   local dir = project.relative(ctx.project, vim.fs.dirname(source.path))
   return dir .. (source.private and " private" or "") .. " · " .. source.env

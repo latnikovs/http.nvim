@@ -49,6 +49,39 @@ function M.load(proj, on_done)
   end
 end
 
+-- Top-level folder names of a project: the services
+local function services(proj)
+  local names = {}
+  for name, kind in vim.fs.dir(proj.root) do
+    if kind == "directory" and not name:match("^%.") then
+      names[name] = true
+    end
+  end
+  return names
+end
+
+-- Secrets by scope. A path that starts with a service (a top-level folder),
+-- "integration/stag/client", applies to that service's requests only, as
+-- "stag/client"; any other path applies to the whole project:
+--   { project = { [env] = vars }, services = { [service] = { [env] = vars } } }
+function M.split(proj, raw)
+  local out = { project = {}, services = {} }
+  if not raw then
+    return out
+  end
+  local names = services(proj)
+  for path, vars in pairs(raw) do
+    local service, rest = path:match("^([^/]+)/(.+)$")
+    if service and names[service] then
+      out.services[service] = out.services[service] or {}
+      out.services[service][rest] = vars
+    else
+      out.project[path] = vars
+    end
+  end
+  return out
+end
+
 -- Forget loaded secrets (all projects, or one)
 function M.reset(proj)
   if proj then

@@ -2,8 +2,9 @@
 -- applies "$shared", then "stag", then "stag/client", each level over the
 -- one before. Env files are read in every folder from the project root down
 -- to the request's folder (public, then private), and for each level a
--- nearer file wins. Secrets (config.secrets) go over all of it, and env
--- values go over @variables in the .http file, as in IntelliJ.
+-- nearer file wins. Secrets (config.secrets) go over all of it, the request's
+-- service's own over the project's, and env values go over @variables in the
+-- .http file, as in IntelliJ.
 local project = require("httpnvim.project")
 
 local M = {}
@@ -94,9 +95,10 @@ end
 
 -- Variables for one environment and where each came from:
 --   vars[name] = value
---   sources[name] = { kind = "file"|"secret"|"line", path, private, env, lnum }
--- file_vars/file_lines are the @variables of the .http file and their lines.
-function M.vars(files, env, secrets, file_vars, file_lines)
+--   sources[name] = { kind = "file"|"secret"|"line", path, private, env, lnum, service }
+-- secrets are the project's, service is { name, secrets } for the request's
+-- service; file_vars/file_lines are the @variables of the .http file.
+function M.vars(files, env, secrets, file_vars, file_lines, service)
   local vars, sources = {}, {}
   for name, value in pairs(file_vars or {}) do
     vars[name] = value
@@ -112,11 +114,17 @@ function M.vars(files, env, secrets, file_vars, file_lines)
         end
       end
     end
-    local section = secrets and secrets[level]
-    if type(section) == "table" then
-      for name, value in pairs(section) do
-        vars[name] = value
-        sources[name] = { kind = "secret", env = level }
+    local scopes = { { secrets = secrets } }
+    if service then
+      table.insert(scopes, { secrets = service.secrets, service = service.name })
+    end
+    for _, scope in ipairs(scopes) do
+      local section = scope.secrets and scope.secrets[level]
+      if type(section) == "table" then
+        for name, value in pairs(section) do
+          vars[name] = value
+          sources[name] = { kind = "secret", env = level, service = scope.service }
+        end
       end
     end
   end

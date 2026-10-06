@@ -76,7 +76,7 @@ end
 
 -- A folder's base URL for an environment, from the env files down to it
 local function base_of(dir, env_name)
-  local vars = env.vars(env.files(state.project, dir), env_name, secrets.get(state.project))
+  local vars = env.vars(env.files(state.project, dir), env_name)
   return vars.base and resolve.value("base", vars) or nil
 end
 

@@ -46,3 +46,113 @@ describe("service variables", function()
     httpnvim.cancel()
   end)
 end)
+
+describe("service secrets", function()
+  local root = TMP .. "/svcsec/http"
+  write(root .. "/http-client.env.json", vim.json.encode({ stag = {} }))
+  write(root .. "/integration/a.http", "GET {{base}}/a\nAuthorization: Basic {{username}} {{password}}")
+  write(root .. "/print/b.http", "GET {{base}}/b\nAuthorization: Basic {{username}} {{password}}")
+  local proj = require("httpnvim.project").find(root)
+  local secrets = require("httpnvim.secrets")
+  local context = require("httpnvim.context")
+  local raw = {
+    ["stag/toplog"] = { username = "shared", password = "shared-pw", extra = "x" },
+    ["integration/stag/toplog"] = { username = "int-user", password = "int-pw" },
+    ["integration/prod/toplog"] = { username = "int-prod" },
+  }
+
+  it("splits paths that start with a service folder", function()
+    local split = secrets.split(proj, raw)
+    eq({ ["stag/toplog"] = raw["stag/toplog"] }, split.project)
+    eq(
+      { ["stag/toplog"] = raw["integration/stag/toplog"], ["prod/toplog"] = raw["integration/prod/toplog"] },
+      split.services.integration
+    )
+  end)
+
+  it("uses a service's own secrets over the project's, only in that service", function()
+    httpnvim.setup({
+      secrets = function(_, cb)
+        cb(raw)
+      end,
+    })
+    secrets.load(proj, function() end)
+    vim.wait(100)
+    require("httpnvim.env").select(proj, "stag/toplog")
+
+    vim.cmd.edit(root .. "/integration/a.http")
+    local ctx = context.get(0)
+    eq("integration", ctx.service)
+    eq("int-user", ctx.vars.username)
+    eq("x", ctx.vars.extra)
+    eq({ kind = "secret", env = "stag/toplog", service = "integration" }, ctx.sources.username)
+    eq("secrets · integration · stag/toplog", require("httpnvim.hints").describe(ctx, ctx.sources.username))
+
+    vim.cmd.edit(root .. "/print/b.http")
+    ctx = context.get(0)
+    eq("print", ctx.service)
+    eq("shared", ctx.vars.username)
+    eq("secrets · stag/toplog", require("httpnvim.hints").describe(ctx, ctx.sources.username))
+  end)
+
+  it("lists environments from service secrets without the service", function()
+    eq({ "prod/toplog", "stag", "stag/toplog" }, context.env_names(proj))
+    secrets.reset()
+    httpnvim.setup({})
+  end)
+end)
+
+describe("service secrets", function()
+  local root = TMP .. "/svcsec/http"
+  write(root .. "/http-client.env.json", vim.json.encode({ stag = {} }))
+  write(root .. "/integration/a.http", "GET {{base}}/a\nAuthorization: Basic {{username}} {{password}}")
+  write(root .. "/print/b.http", "GET {{base}}/b\nAuthorization: Basic {{username}} {{password}}")
+  local proj = require("httpnvim.project").find(root)
+  local secrets = require("httpnvim.secrets")
+  local context = require("httpnvim.context")
+  local raw = {
+    ["stag/toplog"] = { username = "shared", password = "shared-pw", extra = "x" },
+    ["integration/stag/toplog"] = { username = "int-user", password = "int-pw" },
+    ["integration/prod/toplog"] = { username = "int-prod" },
+  }
+
+  it("splits paths that start with a service folder", function()
+    local split = secrets.split(proj, raw)
+    eq({ ["stag/toplog"] = raw["stag/toplog"] }, split.project)
+    eq(
+      { ["stag/toplog"] = raw["integration/stag/toplog"], ["prod/toplog"] = raw["integration/prod/toplog"] },
+      split.services.integration
+    )
+  end)
+
+  it("uses a service's own secrets over the project's, only in that service", function()
+    httpnvim.setup({
+      secrets = function(_, cb)
+        cb(raw)
+      end,
+    })
+    secrets.load(proj, function() end)
+    vim.wait(100)
+    require("httpnvim.env").select(proj, "stag/toplog")
+
+    vim.cmd.edit(root .. "/integration/a.http")
+    local ctx = context.get(0)
+    eq("integration", ctx.service)
+    eq("int-user", ctx.vars.username)
+    eq("x", ctx.vars.extra)
+    eq({ kind = "secret", env = "stag/toplog", service = "integration" }, ctx.sources.username)
+    eq("secrets · integration · stag/toplog", require("httpnvim.hints").describe(ctx, ctx.sources.username))
+
+    vim.cmd.edit(root .. "/print/b.http")
+    ctx = context.get(0)
+    eq("print", ctx.service)
+    eq("shared", ctx.vars.username)
+    eq("secrets · stag/toplog", require("httpnvim.hints").describe(ctx, ctx.sources.username))
+  end)
+
+  it("lists environments from service secrets without the service", function()
+    eq({ "prod/toplog", "stag", "stag/toplog" }, context.env_names(proj))
+    secrets.reset()
+    httpnvim.setup({})
+  end)
+end)
