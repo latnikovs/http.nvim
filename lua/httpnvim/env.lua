@@ -95,10 +95,11 @@ end
 
 -- Variables for one environment and where each came from:
 --   vars[name] = value
---   sources[name] = { kind = "file"|"secret"|"line", path, private, env, lnum, service }
+--   sources[name] = { kind = "file"|"secret"|"line"|"session", path, private, env, lnum, service }
 -- secrets are the project's, service is { name, secrets } for the request's
--- service; file_vars/file_lines are the @variables of the .http file.
-function M.vars(files, env, secrets, file_vars, file_lines, service)
+-- service; file_vars/file_lines are the @variables of the .http file;
+-- session holds values set in this session, over files but not secrets.
+function M.vars(files, env, secrets, file_vars, file_lines, service, session)
   local vars, sources = {}, {}
   for name, value in pairs(file_vars or {}) do
     vars[name] = value
@@ -117,6 +118,12 @@ function M.vars(files, env, secrets, file_vars, file_lines, service)
     local scopes = { { secrets = secrets } }
     if service then
       table.insert(scopes, { secrets = service.secrets, service = service.name })
+    end
+    if level == env then
+      for name, value in pairs(session or {}) do
+        vars[name] = value
+        sources[name] = { kind = "session", env = level }
+      end
     end
     for _, scope in ipairs(scopes) do
       local section = scope.secrets and scope.secrets[level]
@@ -142,6 +149,21 @@ function M.secret_names(secrets)
     end
   end
   return names
+end
+
+-- Throwaway values (ids and such) set for an environment, kept in memory
+-- for the nvim session only: project root -> env -> name -> value
+local session = {}
+
+function M.session(proj, env)
+  return env and session[proj.root] and session[proj.root][env] or {}
+end
+
+-- Sets a session value; nil or "" forgets it
+function M.session_set(proj, env, name, value)
+  session[proj.root] = session[proj.root] or {}
+  session[proj.root][env] = session[proj.root][env] or {}
+  session[proj.root][env][name] = value ~= "" and value or nil
 end
 
 -- Selected environment per project root, kept across sessions
@@ -177,6 +199,7 @@ function M._reset(path)
   state_path = path or state_path
   selected = nil
   cache = {}
+  session = {}
 end
 
 return M

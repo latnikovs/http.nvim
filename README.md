@@ -10,8 +10,8 @@ the request. Plain Lua, nothing to download besides curl, MIT licensed.
   builds on `stag`
 - Env files merged from the project root down to the request's folder
 - Each variable's value and origin shown at the end of the line
-- Set a variable for the selected environment from the request; undefined
-  ones are asked for on send and saved
+- Undefined variables (ids and such) are asked for on send and kept for the
+  session, per environment; nothing is written to your files
 - A sidebar with the environments and the request tree, in the spirit of
   vim-dadbod-ui
 - A hook for secrets, so credentials can come from a password manager
@@ -122,16 +122,17 @@ IntelliJ reads the same files, but without the hierarchy: there,
 
 Each `{{variable}}` gets a hint at the end of its line with its value for the
 selected environment and where it comes from (`api · stag`,
-`. private · stag/client-a`, `secrets · stag/client-a`, `@line 1`). Undefined
+`. private · stag/client-a`, `secrets · stag/client-a`, `session · stag/client-a`,
+`@line 1`). Undefined
 ones are red. Values of names matching `mask` (password, token, …) show as
 `••••`.
 
-- `:HttpSetVar` (on a `{{variable}}`) asks for a value and writes it for the
-  selected environment: into the env file that defines it, else the nearest
-  one above the request
-- Sending a request with undefined variables asks for each and saves them the
-  same way
-- `base` (see `service_vars`) belongs to a service, not a client: it is saved
+- Sending a request with undefined variables asks for each. The values are
+  throwaway: kept in memory for the selected environment until nvim exits,
+  never written to env files (put a value in an env file yourself to keep it)
+- `:HttpSetVar` (on a `{{variable}}`) asks for a value the same way, also to
+  override one from an env file for the session; an empty value forgets it
+- `base` (see `service_vars`) is config, not a throwaway value: it is saved
   in the env file of the request's top-level folder, for the top environment
   level (`stag` when `stag/client-a` is selected)
 - `require("httpnvim").goto_var()` jumps to the definition
@@ -206,7 +207,7 @@ too, and a missing secret is an error instead of a prompt.
 | `:HttpReplay` | send the last request again |
 | `:HttpCancel` | cancel the running request |
 | `:HttpEnv [name]` | select an environment |
-| `:HttpSetVar [name]` | set a variable for the environment |
+| `:HttpSetVar [name]` | set a variable for the environment (this session) |
 | `:HttpView [body\|headers\|request]` | switch the response view |
 | `:HttpCurl` | copy the request as a curl command |
 | `:HttpToggle` | toggle the sidebar |

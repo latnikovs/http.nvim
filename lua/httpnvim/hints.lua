@@ -23,6 +23,8 @@ end
 function M.describe(ctx, source)
   if source.kind == "line" then
     return "@line " .. (source.lnum or "?")
+  elseif source.kind == "session" then
+    return "session · " .. source.env
   elseif source.kind == "secret" then
     return "secrets · " .. (source.service and (source.service .. " · ") or "") .. source.env
   end

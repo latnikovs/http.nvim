@@ -4,22 +4,6 @@ local project = require("httpnvim.project")
 
 local M = {}
 
--- The file a variable is written to: the env file that defines it now if it
--- comes from one, else the nearest env file above the request's folder, else
--- a new one at the project root
-function M.target(ctx, name)
-  local source = ctx.sources[name]
-  if source and source.kind == "file" then
-    return source.path
-  end
-  for i = #ctx.files, 1, -1 do
-    if not ctx.files[i].private then
-      return ctx.files[i].path
-    end
-  end
-  return ctx.project.root .. "/" .. project.ENV_FILE
-end
-
 -- The env file of the service a request's folder is in: its top-level folder
 -- under the project root, or the root for requests at the top
 function M.service_target(ctx)

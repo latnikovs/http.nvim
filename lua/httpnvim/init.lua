@@ -116,7 +116,9 @@ local function name_under_cursor()
   end
 end
 
--- Asks for a value and writes it for the selected environment. on_done(ok).
+-- Asks for a value for the selected environment. on_done(ok). Service values
+-- (base) are config and go into the service's env file; anything else (ids
+-- and such) is throwaway and kept for this session only.
 local function ask_and_set(buf, name, on_done)
   local ctx = context.get(buf)
   if not ctx.env then
@@ -129,20 +131,26 @@ local function ask_and_set(buf, name, on_done)
     return on_done(false)
   end
   local current = ctx.vars[name] ~= nil and tostring(ctx.vars[name]) or ""
-  -- Service values (base) go to the service folder at the top env level,
-  -- the rest to the selected environment itself
-  local is_service = vim.tbl_contains(config.options.service_vars, name)
-  local level = is_service and ctx.env:match("^[^/]+") or ctx.env
-  local path = is_service and envfile.service_target(ctx) or envfile.target(ctx, name)
+  if not vim.tbl_contains(config.options.service_vars, name) then
+    vim.ui.input({ prompt = ("%s for %s (this session): "):format(name, ctx.env), default = current }, function(value)
+      if value == nil then
+        return on_done(false)
+      end
+      env.session_set(ctx.project, ctx.env, name, value)
+      M.refresh()
+      on_done(value ~= "")
+    end)
+    return
+  end
+  -- The service folder's env file, at the top env level
+  local level = ctx.env:match("^[^/]+")
+  local path = envfile.service_target(ctx)
   local where = project.relative(ctx.project, vim.fs.dirname(path))
-  local prompt = is_service and ("%s of %s for %s: "):format(name, where, level) or ("%s for %s: "):format(name, level)
-  vim.ui.input({ prompt = prompt, default = current }, function(value)
+  vim.ui.input({ prompt = ("%s of %s for %s: "):format(name, where, level), default = current }, function(value)
     if value == nil then
       return on_done(false)
     end
-    if is_service then
-      value = vim.trim(value):gsub("/+$", "")
-    end
+    value = vim.trim(value):gsub("/+$", "")
     local ok, err = envfile.write(path, level, name, value)
     if not ok then
       notify("Can't set " .. name .. ": " .. err, vim.log.levels.ERROR)
@@ -192,6 +200,8 @@ function M.goto_var()
     vim.api.nvim_win_set_cursor(0, { source.lnum, 0 })
   elseif source.kind == "secret" then
     notify(name .. " comes from secrets (" .. source.env .. ")")
+  elseif source.kind == "session" then
+    notify(name .. " is set for this session (" .. source.env .. ")")
   else
     vim.cmd("normal! m'")
     vim.cmd.edit(vim.fn.fnameescape(source.path))
@@ -203,7 +213,7 @@ end
 -- Sending --------------------------------------------------------------------
 
 -- Resolves req in buf, loading secrets and asking for undefined variables
--- (saved for the environment) as needed, then calls fn(resolved, ctx)
+-- (kept for the session) as needed, then calls fn(resolved, ctx)
 local function resolve_request(buf, req, fn, tried_secrets)
   local ctx = context.get(buf)
   local resolved, missing = resolve.request(req, ctx.vars)

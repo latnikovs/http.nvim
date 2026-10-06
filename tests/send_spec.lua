@@ -124,18 +124,24 @@ describe("send", function()
     ok(pane_text():find("Cancelled"))
   end)
 
-  it("asks for an undefined variable, saves it for the environment, and sends", function()
+  it("asks for an undefined variable, keeps it for the session only, and sends", function()
+    local env_file = root .. "/api/http-client.env.json"
+    local before = vim.fn.readfile(env_file)
     vim.api.nvim_buf_set_lines(buf, 1, 2, false, { "GET {{base}}/items/{{other}}" })
     local orig = vim.ui.input
+    local asked = 0
     vim.ui.input = function(opts, cb)
-      eq("other for dev: ", opts.prompt)
+      asked = asked + 1
+      eq("other for dev (this session): ", opts.prompt)
       cb("99")
     end
     local text = send(2)
-    vim.ui.input = orig
     eq("/items/99", vim.json.decode(text).path)
-    local saved = vim.json.decode(table.concat(vim.fn.readfile(root .. "/api/http-client.env.json"), "\n"))
-    eq({ dev = { id = "42", other = "99" } }, saved)
+    eq(before, vim.fn.readfile(env_file))
+    -- Asked once: the second send uses the kept value
+    send(2)
+    vim.ui.input = orig
+    eq(1, asked)
   end)
 
   it("shows hints with values and sources", function()
@@ -150,16 +156,16 @@ describe("send", function()
       end
       text[m[2] + 1] = table.concat(line)
     end
-    ok(text[2]:find("other = 99  api · dev", 1, true), text[2])
+    ok(text[2]:find("other = 99  session · dev", 1, true), text[2])
     ok(text[3]:find("password = ••••", 1, true), text[3])
   end)
 
   it("jumps to a variable's definition with goto_var", function()
     vim.api.nvim_set_current_win(vim.fn.bufwinid(buf))
-    vim.api.nvim_win_set_cursor(0, { 2, 25 }) -- on {{other}}
+    vim.api.nvim_win_set_cursor(0, { 2, 10 }) -- on {{base}}
     httpnvim.goto_var()
-    eq(root .. "/api/http-client.env.json", vim.api.nvim_buf_get_name(0))
-    ok(vim.api.nvim_get_current_line():find('"other"', 1, true), vim.api.nvim_get_current_line())
+    eq(root .. "/http-client.env.json", vim.api.nvim_buf_get_name(0))
+    ok(vim.api.nvim_get_current_line():find('"base"', 1, true), vim.api.nvim_get_current_line())
     vim.cmd("buffer " .. buf)
   end)
 end)

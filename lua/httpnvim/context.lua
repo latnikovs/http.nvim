@@ -30,7 +30,8 @@ function M.get(buf)
   local split = secrets.split(proj, ctx.secrets)
   local service = ctx.service and { name = ctx.service, secrets = split.services[ctx.service] }
   local file_vars, file_lines = parser.file_vars(lines)
-  ctx.vars, ctx.sources = env.vars(ctx.files, ctx.env, split.project, file_vars, file_lines, service)
+  ctx.vars, ctx.sources =
+    env.vars(ctx.files, ctx.env, split.project, file_vars, file_lines, service, env.session(proj, ctx.env))
   return ctx
 end
 

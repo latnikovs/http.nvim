@@ -31,18 +31,22 @@ describe("service variables", function()
     httpnvim.cancel()
   end)
 
-  it("keeps other variables at the client level, in the nearest env file", function()
+  it("keeps other variables for the session only, per environment", function()
     vim.api.nvim_buf_set_lines(0, 0, -1, false, { "GET {{base}}/x/{{warehouseId}}" })
     local orig = vim.ui.input
     vim.ui.input = function(opts, cb)
-      eq("warehouseId for stag/a: ", opts.prompt)
+      eq("warehouseId for stag/a (this session): ", opts.prompt)
       cb("17")
     end
     httpnvim.send_at(vim.api.nvim_get_current_buf(), 1)
     vim.ui.input = orig
     local service_env =
       vim.json.decode(table.concat(vim.fn.readfile(root .. "/integration/http-client.env.json"), "\n"))
-    eq({ stag = { base = "http://127.0.0.1:9" }, ["stag/a"] = { warehouseId = "17" } }, service_env)
+    eq({ stag = { base = "http://127.0.0.1:9" } }, service_env)
+    eq("17", require("httpnvim.context").get(0).vars.warehouseId)
+    env.select(proj, "stag")
+    eq(nil, require("httpnvim.context").get(0).vars.warehouseId)
+    env.select(proj, "stag/a")
     httpnvim.cancel()
   end)
 end)
