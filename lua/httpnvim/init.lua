@@ -129,18 +129,27 @@ local function ask_and_set(buf, name, on_done)
     return on_done(false)
   end
   local current = ctx.vars[name] ~= nil and tostring(ctx.vars[name]) or ""
-  vim.ui.input({ prompt = ("%s for %s: "):format(name, ctx.env), default = current }, function(value)
+  -- Service values (base) go to the service folder at the top env level,
+  -- the rest to the selected environment itself
+  local is_service = vim.tbl_contains(config.options.service_vars, name)
+  local level = is_service and ctx.env:match("^[^/]+") or ctx.env
+  local path = is_service and envfile.service_target(ctx) or envfile.target(ctx, name)
+  local where = project.relative(ctx.project, vim.fs.dirname(path))
+  local prompt = is_service and ("%s of %s for %s: "):format(name, where, level) or ("%s for %s: "):format(name, level)
+  vim.ui.input({ prompt = prompt, default = current }, function(value)
     if value == nil then
       return on_done(false)
     end
-    local path = envfile.target(ctx, name)
-    local ok, err = envfile.write(path, ctx.env, name, value)
+    if is_service then
+      value = vim.trim(value):gsub("/+$", "")
+    end
+    local ok, err = envfile.write(path, level, name, value)
     if not ok then
       notify("Can't set " .. name .. ": " .. err, vim.log.levels.ERROR)
       return on_done(false)
     end
     local shown = config.masked(name) and "••••" or value
-    notify(("%s = %s for %s in %s"):format(name, shown, ctx.env, project.relative(ctx.project, path)))
+    notify(("%s = %s for %s in %s"):format(name, shown, level, project.relative(ctx.project, path)))
     M.refresh()
     on_done(true)
   end)

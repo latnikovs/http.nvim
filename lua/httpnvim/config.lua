@@ -16,6 +16,11 @@ M.defaults = {
   -- Response pane height, as a fraction of the request window
   pane = { height = 0.45 },
   hints = { enabled = true, max_width = 40 },
+  -- Variables that belong to a service, not a client: set from a request,
+  -- they go into the env file of its top-level folder (the service) at the
+  -- environment's top level ("stag" for "stag/client"), where the sidebar's
+  -- b puts the base URL
+  service_vars = { "base" },
   curl = { "curl", "-sS", "-L", "--compressed" },
 }
 

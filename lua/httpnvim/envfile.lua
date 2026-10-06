@@ -20,6 +20,14 @@ function M.target(ctx, name)
   return ctx.project.root .. "/" .. project.ENV_FILE
 end
 
+-- The env file of the service a request's folder is in: its top-level folder
+-- under the project root, or the root for requests at the top
+function M.service_target(ctx)
+  local chain = project.chain(ctx.project, ctx.dir)
+  local dir = chain[1] == ctx.project.root and chain[2] or chain[1]
+  return (dir or ctx.project.root) .. "/" .. project.ENV_FILE
+end
+
 -- Sets env_name.name = value in the file with jq, which keeps the key order
 -- and adds new keys at the end. Returns true or nil and an error.
 function M.write(path, env_name, name, value)

@@ -131,6 +131,9 @@ ones are red. Values of names matching `mask` (password, token, …) show as
   one above the request
 - Sending a request with undefined variables asks for each and saves them the
   same way
+- `base` (see `service_vars`) belongs to a service, not a client: it is saved
+  in the env file of the request's top-level folder, for the top environment
+  level (`stag` when `stag/client-a` is selected)
 - `require("httpnvim").goto_var()` jumps to the definition
 
 ## Sidebar
