@@ -306,6 +306,16 @@ function M.toggle()
   require("httpnvim.sidebar").toggle()
 end
 
+-- Adds a request below the one under the cursor (headers copied from it)
+function M.new_request()
+  local buf = vim.api.nvim_get_current_buf()
+  local lnum = vim.api.nvim_win_get_cursor(0)[1]
+  require("httpnvim.scaffold").ask_request(function(name, input)
+    local line = require("httpnvim.scaffold").insert_request(buf, lnum, name, input)
+    vim.api.nvim_win_set_cursor(0, { line, 0 })
+  end)
+end
+
 function M.view(name)
   if name and name ~= "" then
     pane.set_view(name)
@@ -335,6 +345,7 @@ function M.setup(opts)
   command("HttpCancel", M.cancel, { desc = "Cancel the running request" })
   command("HttpCurl", M.copy_curl, { desc = "Copy the request under the cursor as curl" })
   command("HttpToggle", M.toggle, { desc = "Toggle the sidebar" })
+  command("HttpNew", M.new_request, { desc = "Add a request below the current one" })
   command("HttpEnv", function(o)
     M.select_env(o.args)
   end, {

@@ -39,6 +39,20 @@ With lazy.nvim:
 `setup()` takes the options in [config.lua](lua/httpnvim/config.lua). There
 are no default global keymaps; see [Keymaps](#keymaps).
 
+## Getting started
+
+Open the sidebar (`:HttpToggle`) in a repository without an `http/` folder
+and it offers to create one at the git root, asking for the environments
+(`stag, prod`). Private env files go into `.git/info/exclude`.
+
+In the sidebar, `a` with a name ending in `/` adds a folder; a top-level
+folder is a service, so it also asks for its base URL per environment and
+writes the folder's env file. `n` adds a request ("Health", then
+`GET /actuator/health`), with the headers of the request before it, or
+`Authorization: Basic {{username}} {{password}}` and `Accept:
+application/json` in a new file. `:HttpNew` does the same below the request
+under the cursor.
+
 ## Requests
 
 ```http
@@ -140,6 +154,7 @@ ones are red. Values of names matching `mask` (password, token, …) show as
 |---|---|
 | `<CR>` | select environment, fold, open request |
 | `s` | send the request |
+| `n` | new request (in the file, or a file in the folder) |
 | `o` | open in the editor |
 | `e` | choose environment |
 | `a` | add a file, or a folder ending in `/` |
@@ -181,6 +196,7 @@ too, and a missing secret is an error instead of a prompt.
 | `:HttpView [body\|headers\|request]` | switch the response view |
 | `:HttpCurl` | copy the request as a curl command |
 | `:HttpToggle` | toggle the sidebar |
+| `:HttpNew` | add a request below the current one |
 | `:HttpSecretsReset` | forget loaded secrets |
 
 ## Keymaps

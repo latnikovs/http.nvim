@@ -41,7 +41,7 @@ describe("sidebar", function()
   vim.cmd.cd(repo)
 
   it("opens on the left with the project and environments", function()
-    vim.cmd("only")
+    vim.cmd("silent! only")
     sidebar.toggle()
     ok(sidebar.win())
     eq(1, vim.fn.win_screenpos(sidebar.win())[2])

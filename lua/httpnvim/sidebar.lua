@@ -7,6 +7,7 @@ local context = require("httpnvim.context")
 local env = require("httpnvim.env")
 local parser = require("httpnvim.parser")
 local project = require("httpnvim.project")
+local scaffold = require("httpnvim.scaffold")
 local secrets = require("httpnvim.secrets")
 
 local M = {}
@@ -17,6 +18,7 @@ local state = { buf = nil, project = nil, expanded = {}, nodes = {}, help = fals
 local HELP = {
   "<CR>  open · select · fold",
   "s     send the request",
+  "n     new request",
   "o     open in the editor",
   "e     choose environment",
   "a     add file or folder/",
@@ -359,9 +361,12 @@ function M.add()
     end
     input = vim.trim(input)
     local path = dir .. "/" .. input:gsub("/$", "")
+    local is_service = false
     if input:match("/$") then
       vim.fn.mkdir(path, "p")
       state.expanded["dir:" .. path] = true
+      -- A top-level folder is a service: ask for its base URLs
+      is_service = vim.fs.dirname(path) == state.project.root
     else
       if not is_request_file(path) then
         path = path .. ".http"
@@ -381,6 +386,52 @@ function M.add()
       d = vim.fs.dirname(d)
     end
     M.render()
+    if is_service then
+      scaffold.ask_bases(state.project, path, M.render)
+    end
+  end)
+end
+
+-- A new request: added to the file (after the request) under the cursor, or
+-- to a file asked for in the folder under the cursor
+function M.new_request()
+  local node = current_node()
+  local function add(path, lnum)
+    scaffold.ask_request(function(name, input)
+      vim.fn.mkdir(vim.fs.dirname(path), "p")
+      local win = open_file(path)
+      local buf = vim.api.nvim_win_get_buf(win)
+      local line = scaffold.insert_request(buf, lnum, name, input)
+      vim.api.nvim_buf_call(buf, function()
+        vim.cmd("silent write")
+      end)
+      vim.api.nvim_win_set_cursor(win, { line, 0 })
+      state.expanded["file:" .. path] = true
+      local d = vim.fs.dirname(path)
+      while #d > #state.project.root do
+        state.expanded["dir:" .. d] = true
+        d = vim.fs.dirname(d)
+      end
+      M.render()
+    end)
+  end
+  if node and (node.kind == "file" or node.kind == "request") then
+    add(node.path, node.lnum)
+    return
+  end
+  local dir = folder_of(node)
+  vim.ui.input({
+    prompt = ("File in %s: "):format(project.relative(state.project, dir)),
+    default = "requests.http",
+  }, function(input)
+    if not input or vim.trim(input) == "" then
+      return
+    end
+    local path = dir .. "/" .. vim.trim(input)
+    if not is_request_file(path) then
+      path = path .. ".http"
+    end
+    add(path, nil)
   end)
 end
 
@@ -469,6 +520,7 @@ local function make_buf()
     require("httpnvim").select_env(nil, state.project)
   end, "Choose Environment")
   map("a", M.add, "Add File or Folder")
+  map("n", M.new_request, "New Request")
   map("r", M.rename, "Rename")
   map("d", M.delete, "Delete")
   map("R", M.render, "Refresh")
@@ -481,10 +533,10 @@ local function make_buf()
   return buf
 end
 
-function M.open()
-  local proj = require("httpnvim").project()
+function M.open(proj)
+  proj = proj or require("httpnvim").project()
   if not proj then
-    notify("No http/ folder here (" .. vim.fn.fnamemodify(vim.fn.getcwd(), ":~") .. ")", vim.log.levels.WARN)
+    scaffold.offer_project(M.open)
     return
   end
   if not state.project or state.project.root ~= proj.root then
