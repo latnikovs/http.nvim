@@ -116,7 +116,7 @@ describe("onboarding", function()
     local prompts, restore = answer({ "actuator", "Health", "GET /actuator/health" })
     sidebar.new_request()
     restore()
-    eq("File in integration: ", prompts[1])
+    eq("File in integration (requests.http): ", prompts[1])
     local path = repo .. "/http/integration/actuator.http"
     eq(
       vim.list_extend({ "### Health", "GET {{base}}/actuator/health" }, vim.deepcopy(scaffold.DEFAULT_HEADERS)),
@@ -126,6 +126,38 @@ describe("onboarding", function()
     eq(2, vim.api.nvim_win_get_cursor(0)[1])
     local text = table.concat(vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(sidebar.win()), 0, -1, false), "\n")
     ok(text:find("GET    Health", 1, true), text)
+  end)
+
+  it("shows hints in the new request right away", function()
+    require("httpnvim.env").select({ root = repo .. "/http" }, "stag")
+    local buf = vim.api.nvim_get_current_buf()
+    local marks = vim.api.nvim_buf_get_extmarks(buf, require("httpnvim.hints").ns, 0, -1, {})
+    ok(#marks > 0, "no hints")
+  end)
+
+  it("shows a folder's base URL and sets it with b", function()
+    require("httpnvim").refresh()
+    vim.api.nvim_set_current_win(sidebar.win())
+    local function sidebar_text()
+      return table.concat(vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(sidebar.win()), 0, -1, false), "\n")
+    end
+    ok(sidebar_text():find("integration  integration.stag.example", 1, true), sidebar_text())
+    local lines = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(sidebar.win()), 0, -1, false)
+    for i, line in ipairs(lines) do
+      if line:find("integration  ", 1, true) then
+        vim.api.nvim_win_set_cursor(sidebar.win(), { i, 0 })
+      end
+    end
+    local prompts, restore = answer({ "https://new.stag.example/" })
+    sidebar.set_base()
+    restore()
+    eq("Base URL of integration for stag: ", prompts[1])
+    eq(
+      { stag = { base = "https://new.stag.example" } },
+      vim.json.decode(read(repo .. "/http/integration/http-client.env.json"))
+    )
+    ok(sidebar_text():find("integration  new.stag.example", 1, true), sidebar_text())
+    vim.cmd("wincmd p")
   end)
 
   it("adds a request below the current one in a buffer", function()

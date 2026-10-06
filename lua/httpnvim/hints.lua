@@ -118,7 +118,7 @@ function M.setup()
   })
   vim.api.nvim_create_autocmd("BufWritePost", {
     group = group,
-    pattern = { project.ENV_FILE, project.PRIVATE_ENV_FILE },
+    pattern = { project.ENV_FILE, project.PRIVATE_ENV_FILE, "*.http", "*.rest" },
     callback = M.refresh,
   })
 end

@@ -5,8 +5,10 @@
 local config = require("httpnvim.config")
 local context = require("httpnvim.context")
 local env = require("httpnvim.env")
+local envfile = require("httpnvim.envfile")
 local parser = require("httpnvim.parser")
 local project = require("httpnvim.project")
+local resolve = require("httpnvim.resolve")
 local scaffold = require("httpnvim.scaffold")
 local secrets = require("httpnvim.secrets")
 
@@ -19,6 +21,7 @@ local HELP = {
   "<CR>  open · select · fold",
   "s     send the request",
   "n     new request",
+  "b     base URL of a folder",
   "o     open in the editor",
   "e     choose environment",
   "a     add file or folder/",
@@ -69,6 +72,12 @@ local function file_requests(path)
   local lines = buf ~= -1 and vim.api.nvim_buf_is_loaded(buf) and vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     or vim.fn.readfile(path)
   return parser.requests(lines)
+end
+
+-- A folder's base URL for an environment, from the env files down to it
+local function base_of(dir, env_name)
+  local vars = env.vars(env.files(state.project, dir), env_name, secrets.get(state.project))
+  return vars.base and resolve.value("base", vars) or nil
 end
 
 -- Environment names as a tree: { name, path, children, is_env }
@@ -158,10 +167,15 @@ local function build()
         local path = dir .. "/" .. name
         local key = "dir:" .. path
         local dopen = state.expanded[key] == true
-        add(
-          { { indent .. (dopen and "▾ " or "▸ ") .. name, "Directory" } },
-          { kind = "dir", path = path, key = key }
-        )
+        local chunks = { { indent .. (dopen and "▾ " or "▸ ") .. name, "Directory" } }
+        -- Folders with their own env file show their base URL
+        if selected and vim.uv.fs_stat(path .. "/" .. project.ENV_FILE) then
+          local base = base_of(path, selected)
+          if base then
+            table.insert(chunks, { "  " .. base:gsub("^%a+://", ""), "Comment" })
+          end
+        end
+        add(chunks, { kind = "dir", path = path, key = key })
         if dopen then
           walk(path, depth + 1)
         end
@@ -392,6 +406,37 @@ function M.add()
   end)
 end
 
+-- Sets the base URL of the folder under the cursor (a file's folder, or the
+-- root) for the selected environment's top level ("stag" for "stag/toplog"),
+-- in that folder's env file
+function M.set_base()
+  local node = current_node()
+  local dir = folder_of(node)
+  local selected = env.selected(state.project)
+  if not selected then
+    notify("Select an environment first", vim.log.levels.WARN)
+    return
+  end
+  local level = selected:match("^[^/]+")
+  local where = project.relative(state.project, dir)
+  vim.ui.input({
+    prompt = ("Base URL of %s for %s: "):format(where, level),
+    default = base_of(dir, level),
+  }, function(url)
+    if not url or vim.trim(url) == "" then
+      return
+    end
+    url = vim.trim(url):gsub("/+$", "")
+    local ok, err = envfile.write(dir .. "/" .. project.ENV_FILE, level, "base", url)
+    if not ok then
+      notify("Can't save the base URL: " .. err, vim.log.levels.ERROR)
+      return
+    end
+    notify(("base = %s for %s in %s"):format(url, level, where))
+    require("httpnvim").refresh()
+  end)
+end
+
 -- A new request: added to the file (after the request) under the cursor, or
 -- to a file asked for in the folder under the cursor
 function M.new_request()
@@ -406,6 +451,7 @@ function M.new_request()
         vim.cmd("silent write")
       end)
       vim.api.nvim_win_set_cursor(win, { line, 0 })
+      require("httpnvim.hints").render(buf)
       state.expanded["file:" .. path] = true
       local d = vim.fs.dirname(path)
       while #d > #state.project.root do
@@ -421,13 +467,12 @@ function M.new_request()
   end
   local dir = folder_of(node)
   vim.ui.input({
-    prompt = ("File in %s: "):format(project.relative(state.project, dir)),
-    default = "requests.http",
+    prompt = ("File in %s (requests.http): "):format(project.relative(state.project, dir)),
   }, function(input)
-    if not input or vim.trim(input) == "" then
+    if input == nil then
       return
     end
-    local path = dir .. "/" .. vim.trim(input)
+    local path = dir .. "/" .. (vim.trim(input) ~= "" and vim.trim(input) or "requests.http")
     if not is_request_file(path) then
       path = path .. ".http"
     end
@@ -521,6 +566,7 @@ local function make_buf()
   end, "Choose Environment")
   map("a", M.add, "Add File or Folder")
   map("n", M.new_request, "New Request")
+  map("b", M.set_base, "Set Base URL")
   map("r", M.rename, "Rename")
   map("d", M.delete, "Delete")
   map("R", M.render, "Refresh")

@@ -68,9 +68,12 @@ function M.offer_project(on_done)
   if vim.fn.confirm(("No http/ folder in %s. Create one?"):format(name), "&Yes\n&No", 1) ~= 1 then
     return
   end
-  vim.ui.input({ prompt = "Environments (comma-separated): ", default = "stag" }, function(input)
+  vim.ui.input({ prompt = "Environments, comma-separated (stag): " }, function(input)
     if input == nil then
       return
+    end
+    if vim.trim(input) == "" then
+      input = "stag"
     end
     local names = {}
     for part in vim.gsplit(input, ",", { plain = true }) do
@@ -159,7 +162,7 @@ function M.ask_request(fn)
     if not name or vim.trim(name) == "" then
       return
     end
-    vim.ui.input({ prompt = "Method and path: ", default = "GET /" }, function(input)
+    vim.ui.input({ prompt = "Method and path (GET /path): " }, function(input)
       if not input or vim.trim(input) == "" then
         return
       end

@@ -86,7 +86,7 @@ describe("send", function()
     local body = vim.json.decode(text)
     eq("/items/42", body.path)
     eq("Basic " .. vim.base64.encode("u:p"), body.auth)
-    ok(bar:find(" 200 "), bar)
+    ok(bar:find("^%%#DiagnosticOk# 200 %%%* %d+ ms · %d+ B · dev · %%<GET http"), bar)
     ok(bar:find("dev"), bar)
   end)
 

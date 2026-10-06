@@ -123,29 +123,30 @@ local function render(anchor)
     return
   end
   local req, r = result.request, result.response
-  local target = escape(req.method .. " " .. req.url)
-  local env = result.env and (" · " .. escape(result.env)) or ""
-  local view = state.view ~= "body" and (" · " .. state.view) or ""
+  -- The URL goes last, after %<, so a long one is cut instead of the status
+  local target = "%<" .. escape(req.method .. " " .. req.url)
+  local env = result.env and (escape(result.env) .. " · ") or ""
+  local view = state.view ~= "body" and (state.view .. " · ") or ""
 
   if result.running then
-    show({}, "text", " Sending " .. target .. " …" .. env .. " (<C-c> cancels)", anchor)
+    show({}, "text", " Sending… (<C-c> cancels) · " .. env .. target, anchor)
     return
   end
   if result.error then
     local lines = state.view == "request" and request_lines(req) or vim.split(result.error, "\n")
-    show(lines, "text", " %#DiagnosticError#" .. target .. "%*" .. env .. view, anchor)
+    show(lines, "text", " %#DiagnosticError#failed%* · " .. env .. view .. target, anchor)
     return
   end
 
   local hl = r.status >= 400 and "DiagnosticError" or r.status >= 300 and "DiagnosticWarn" or "DiagnosticOk"
-  local winbar = ("%%#%s# %d %%* %s · %d ms · %s%s%s"):format(
+  local winbar = ("%%#%s# %d %%* %d ms · %s · %s%s%s"):format(
     hl,
     r.status,
-    target,
     r.ms,
     human_size(r.size),
     env,
-    view
+    view,
+    target
   )
   if state.view == "headers" then
     show(r.header_lines, "http", winbar, anchor)

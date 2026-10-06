@@ -246,6 +246,7 @@ function M.send(req, env_name, anchor)
     state.job = nil
     result.request, result.env = req, env_name
     pane.update(result, anchor)
+    hints.refresh()
   end)
   state.job = job
 end
@@ -313,6 +314,7 @@ function M.new_request()
   require("httpnvim.scaffold").ask_request(function(name, input)
     local line = require("httpnvim.scaffold").insert_request(buf, lnum, name, input)
     vim.api.nvim_win_set_cursor(0, { line, 0 })
+    hints.render(buf)
   end)
 end
 

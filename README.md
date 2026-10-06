@@ -47,7 +47,9 @@ and it offers to create one at the git root, asking for the environments
 
 In the sidebar, `a` with a name ending in `/` adds a folder; a top-level
 folder is a service, so it also asks for its base URL per environment and
-writes the folder's env file. `n` adds a request ("Health", then
+writes the folder's env file. Folders with an env file show their base URL
+for the selected environment, and `b` changes it (for `stag` when
+`stag/client` is selected, so every client shares it). `n` adds a request ("Health", then
 `GET /actuator/health`), with the headers of the request before it, or
 `Authorization: Basic {{username}} {{password}}` and `Accept:
 application/json` in a new file. `:HttpNew` does the same below the request
@@ -155,6 +157,7 @@ ones are red. Values of names matching `mask` (password, token, …) show as
 | `<CR>` | select environment, fold, open request |
 | `s` | send the request |
 | `n` | new request (in the file, or a file in the folder) |
+| `b` | set the base URL of a folder for the environment |
 | `o` | open in the editor |
 | `e` | choose environment |
 | `a` | add a file, or a folder ending in `/` |
