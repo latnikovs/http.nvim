@@ -219,7 +219,8 @@ too, and a missing secret is an error instead of a prompt.
 None by default. For example:
 
 ```lua
-vim.keymap.set("n", "<leader>H", "<cmd>HttpToggle<cr>", { desc = "HTTP Sidebar" })
+vim.keymap.set("n", "<leader>Hh", "<cmd>HttpToggle<cr>", { desc = "HTTP Sidebar" })
+vim.keymap.set("n", "<leader>He", "<cmd>HttpEnv<cr>", { desc = "HTTP Environment" })
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "http",
   callback = function(ev)
@@ -227,9 +228,8 @@ vim.api.nvim_create_autocmd("FileType", {
     local map = function(lhs, fn, desc)
       vim.keymap.set("n", lhs, function() fn() end, { buffer = ev.buf, desc = desc })
     end
-    map("<leader>Rs", http.send_at, "Send Request")
-    map("<leader>Re", http.select_env, "Select Environment")
-    map("<leader>Rv", http.set_var, "Set Variable")
+    map("<CR>", http.send_at, "Send Request")
+    map("<leader>Hv", http.set_var, "Set Variable")
     map("gd", http.goto_var, "Go to Variable")
   end,
 })
